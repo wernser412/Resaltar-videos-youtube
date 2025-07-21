@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         YouTube - Resaltador desde marcadores de Chrome
 // @namespace    https://chat.openai.com/
-// @version      1.5
+// @version      1.6
 // @description  Resalta videos en YouTube si están entre los marcadores de Chrome importados (.html exportado desde Chrome)
 // @author       wernser412
-// @icon         https://www.youtube.com/s/desktop/6a47fa82/img/favicon_32x32.png
+// @icon         https://www.youtube.com/favicon.ico
 // @downloadURL  https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/YouTube%20-%20Resaltador%20desde%20marcadores%20de%20Chrome.user.js
 // @match        https://www.youtube.com/*
 // @grant        GM_registerMenuCommand
