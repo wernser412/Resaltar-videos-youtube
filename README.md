@@ -1,6 +1,6 @@
 # 🎥 YouTube - Resaltador desde marcadores de Chrome
 
-**Última Actualización:** 19 de septiembre de 2025
+**Última Actualización:** 28 de diciembre de 2025
 
 Este script de Tampermonkey resalta automáticamente los videos de YouTube que están guardados en tus marcadores de Google Chrome. Es ideal para identificar visualmente los videos que ya has guardado o marcado como importantes.
 
