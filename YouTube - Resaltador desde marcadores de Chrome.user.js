@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         YouTube - Resaltador desde marcadores de Chrome
-// @namespace    https://chat.openai.com/
-// @version      2026.01.25
-// @description  Resalta videos guardados en marcadores + limpia playlist de Me gusta
+// @name         YouTube - Resaltador desde marcadores de Chrome + Botón 2x
+// @namespace    http://tampermonkey.net/
+// @version      2026.02.08
+// @description  Resalta videos guardados en marcadores + limpia playlist de Me gusta + botón 2x
 // @author       wernser412
 // @icon         https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/ICONO.ico
 // @downloadURL  https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/YouTube%20-%20Resaltador%20desde%20marcadores%20de%20Chrome.user.js
@@ -74,7 +74,6 @@ function mostrarOverlay(texto, esLink = false) {
         textarea.value = texto;
     }
 }
-
 
 /* ============================
    UTILIDADES
@@ -230,6 +229,44 @@ GM_addStyle(`
 `);
 
 /* ============================
+   BOTÓN VELOCIDAD 2X
+============================ */
+
+const SPEED_FAST = 2.0;
+const SPEED_NORMAL = 1.0;
+
+function agregarBotonVelocidad() {
+    const controls = document.querySelector('.ytp-right-controls');
+    if (!controls || document.getElementById('yt-speed-2x')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'yt-speed-2x';
+    btn.className = 'ytp-button';
+    btn.title = 'Velocidad 2.0x';
+
+    btn.textContent = '2×';
+
+    btn.style.display = 'flex';
+    btn.style.alignItems = 'center';
+    btn.style.justifyContent = 'center';
+    btn.style.fontSize = '14px';
+    btn.style.fontWeight = '600';
+    btn.style.opacity = '0.6';
+
+    btn.onclick = () => {
+        const video = document.querySelector('video');
+        if (!video) return;
+
+        video.playbackRate =
+            video.playbackRate === SPEED_FAST ? SPEED_NORMAL : SPEED_FAST;
+
+        btn.style.opacity = video.playbackRate === SPEED_FAST ? '1' : '0.6';
+    };
+
+    controls.prepend(btn);
+}
+
+/* ============================
    OBSERVER SPA
 ============================ */
 
@@ -241,13 +278,17 @@ const observer = new MutationObserver(mutations => {
     debounceTimer = setTimeout(() => {
         resaltarVideos();
         resaltarTituloVideoActual();
+        agregarBotonVelocidad();
     }, 300);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
 
 window.addEventListener('yt-navigate-finish', () => {
-    setTimeout(resaltarTituloVideoActual, 400);
+    setTimeout(() => {
+        resaltarTituloVideoActual();
+        agregarBotonVelocidad();
+    }, 400);
 });
 
 /* ============================
@@ -338,6 +379,7 @@ window.addEventListener('load', async () => {
     await cargarMarcadores();
     resaltarVideos();
     resaltarTituloVideoActual();
+    agregarBotonVelocidad();
 });
 
 })();
