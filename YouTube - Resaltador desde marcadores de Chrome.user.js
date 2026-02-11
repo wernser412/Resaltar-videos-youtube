@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         YouTube - Resaltador desde marcadores de Chrome + Botón 2x
-// @namespace    http://tampermonkey.net/
-// @version      2026.02.08
+// @name         YouTube - Resaltador desde marcadores + botón 2x + Comentarios ON/OFF
+// @namespace    https://chat.openai.com/
+// @version      2026.02.10
 // @description  Resalta videos guardados en marcadores + limpia playlist de Me gusta + botón 2x
 // @author       wernser412
 // @icon         https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/ICONO.ico
@@ -25,13 +25,11 @@ let ytOverlay;
 ============================ */
 
 function mostrarOverlay(texto, esLink = false) {
-
     const app = document.querySelector("ytd-app");
     if (!app) return;
 
     if (!ytOverlay) {
         ytOverlay = document.createElement("div");
-
         ytOverlay.style.cssText = `
             position: fixed;
             top: 50%;
@@ -43,7 +41,6 @@ function mostrarOverlay(texto, esLink = false) {
         const box = document.createElement("textarea");
         box.id = "tm-like-overlay-text";
         box.readOnly = true;
-
         box.style.cssText = `
             width: 420px;
             height: 120px;
@@ -65,14 +62,9 @@ function mostrarOverlay(texto, esLink = false) {
     }
 
     const textarea = ytOverlay.querySelector("#tm-like-overlay-text");
-
-    if (esLink) {
-        textarea.value =
-            "ABRE PRIMERO ESTA PLAYLIST:\n\n" +
-            "https://www.youtube.com/playlist?list=LL";
-    } else {
-        textarea.value = texto;
-    }
+    textarea.value = esLink
+        ? "ABRE PRIMERO ESTA PLAYLIST:\n\nhttps://www.youtube.com/playlist?list=LL"
+        : texto;
 }
 
 /* ============================
@@ -90,24 +82,7 @@ function obtenerVideoId(url) {
 }
 
 function reconstruirSetIds() {
-    idsMarcados = new Set(
-        urlsMarcadas.map(obtenerVideoId).filter(Boolean)
-    );
-}
-
-function obtenerVideosRepetidos(urls) {
-    const contador = {};
-    const repetidos = {};
-
-    urls.forEach(url => {
-        const id = obtenerVideoId(url);
-        if (!id) return;
-
-        contador[id] = (contador[id] || 0) + 1;
-        if (contador[id] > 1) repetidos[id] = contador[id];
-    });
-
-    return repetidos;
+    idsMarcados = new Set(urlsMarcadas.map(obtenerVideoId).filter(Boolean));
 }
 
 /* ============================
@@ -123,11 +98,7 @@ function extraerYouTubeURLsDesdeHTML(html) {
     const regex = /href="(https:\/\/(www\.)?(youtube\.com\/watch\?[^"]+|youtu\.be\/[^"]+))"/gi;
     const urls = [];
     let match;
-
-    while ((match = regex.exec(html)) !== null) {
-        urls.push(match[1]);
-    }
-
+    while ((match = regex.exec(html)) !== null) urls.push(match[1]);
     return [...new Set(urls)];
 }
 
@@ -137,40 +108,17 @@ async function importarMarcadoresHTML() {
     input.accept = '.html';
 
     input.onchange = async () => {
-        const archivo = input.files[0];
-        if (!archivo) return;
-
-        const contenido = await archivo.text();
+        const contenido = await input.files[0].text();
         const urls = extraerYouTubeURLsDesdeHTML(contenido);
-
-        if (!urls.length) {
-            alert('❌ No se encontraron URLs de YouTube.');
-            return;
-        }
+        if (!urls.length) return alert('❌ No se encontraron URLs de YouTube.');
 
         await GM_setValue("urlsYoutube", urls);
         urlsMarcadas = urls;
         reconstruirSetIds();
-
-        const repetidos = obtenerVideosRepetidos(urls);
-
-        let mensaje =
-            `✅ Importación completada\n\n` +
-            `🔗 URLs encontradas: ${urls.length}\n` +
-            `🎬 Videos únicos: ${idsMarcados.size}`;
-
-        if (Object.keys(repetidos).length) {
-            mensaje += `\n\n🔁 Videos repetidos:\n`;
-            for (const [id, veces] of Object.entries(repetidos)) {
-                mensaje += `• ${id} (${veces} veces)\n`;
-            }
-        }
-
-        alert(mensaje);
+        alert(`✅ Importación completada\n🎬 Videos únicos: ${idsMarcados.size}`);
         resaltarVideos();
         resaltarTituloVideoActual();
     };
-
     input.click();
 }
 
@@ -180,33 +128,18 @@ async function importarMarcadoresHTML() {
 
 function resaltarVideos() {
     if (!idsMarcados.size) return;
-
-    const enlaces = document.querySelectorAll(
-        'a[href*="watch?v="], a[href*="youtu.be/"]'
-    );
-
-    enlaces.forEach(link => {
+    document.querySelectorAll('a[href*="watch?v="], a[href*="youtu.be/"]').forEach(link => {
         if (link.closest('ytd-comments')) return;
-        if (link.classList.contains("yt-bookmark-highlight")) return;
-
         const id = obtenerVideoId(link.href);
-        if (id && idsMarcados.has(id)) {
-            link.classList.add("yt-bookmark-highlight");
-        }
+        if (id && idsMarcados.has(id)) link.classList.add("yt-bookmark-highlight");
     });
 }
 
 function resaltarTituloVideoActual() {
-    const idActual = obtenerVideoId(window.location.href);
-    if (!idActual || !idsMarcados.has(idActual)) return;
-
-    const titulo = document.querySelector(
-        'ytd-watch-metadata h1 yt-formatted-string'
-    );
-
-    if (titulo && !titulo.classList.contains("yt-bookmark-title-highlight")) {
-        titulo.classList.add("yt-bookmark-title-highlight");
-    }
+    const id = obtenerVideoId(location.href);
+    if (!idsMarcados.has(id)) return;
+    const titulo = document.querySelector('ytd-watch-metadata h1 yt-formatted-string');
+    if (titulo) titulo.classList.add("yt-bookmark-title-highlight");
 }
 
 /* ============================
@@ -219,7 +152,6 @@ GM_addStyle(`
     border-left: 6px solid orange !important;
     padding-left: 6px !important;
 }
-
 .yt-bookmark-title-highlight {
     background: linear-gradient(90deg, #fff3a0, transparent) !important;
     border-left: 6px solid orange !important;
@@ -232,9 +164,6 @@ GM_addStyle(`
    BOTÓN VELOCIDAD 2X
 ============================ */
 
-const SPEED_FAST = 2.0;
-const SPEED_NORMAL = 1.0;
-
 function agregarBotonVelocidad() {
     const controls = document.querySelector('.ytp-right-controls');
     if (!controls || document.getElementById('yt-speed-2x')) return;
@@ -242,52 +171,85 @@ function agregarBotonVelocidad() {
     const btn = document.createElement('button');
     btn.id = 'yt-speed-2x';
     btn.className = 'ytp-button';
-    btn.title = 'Velocidad 2.0x';
-
     btn.textContent = '2×';
-
-    btn.style.display = 'flex';
-    btn.style.alignItems = 'center';
-    btn.style.justifyContent = 'center';
-    btn.style.fontSize = '14px';
-    btn.style.fontWeight = '600';
-    btn.style.opacity = '0.6';
+    btn.title = 'Velocidad 2x';
+    btn.style.cssText = `
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:14px;
+        font-weight:600;
+        opacity:.6;
+    `;
 
     btn.onclick = () => {
-        const video = document.querySelector('video');
-        if (!video) return;
-
-        video.playbackRate =
-            video.playbackRate === SPEED_FAST ? SPEED_NORMAL : SPEED_FAST;
-
-        btn.style.opacity = video.playbackRate === SPEED_FAST ? '1' : '0.6';
+        const v = document.querySelector('video');
+        if (!v) return;
+        v.playbackRate = v.playbackRate === 2 ? 1 : 2;
+        btn.style.opacity = v.playbackRate === 2 ? '1' : '.6';
     };
 
     controls.prepend(btn);
 }
 
 /* ============================
+   COMENTARIOS ON / OFF
+============================ */
+
+const COMMENTS_KEY = "comentariosActivos";
+
+async function refrescarComentarios() {
+    const activos = await GM_getValue(COMMENTS_KEY, true);
+    const comments = document.querySelector('ytd-comments');
+    if (!comments) return;
+
+    document.getElementById('tm-comments-disabled-msg')?.remove();
+
+    if (activos) {
+        comments.style.display = '';
+        return;
+    }
+
+    comments.style.display = 'none';
+
+    const msg = document.createElement('div');
+    msg.id = 'tm-comments-disabled-msg';
+    msg.textContent = '💬 Comentarios desactivados';
+    msg.style.cssText = `
+        margin:30px auto;
+        padding:20px;
+        max-width:800px;
+        text-align:center;
+        font-size:22px;
+        font-weight:bold;
+        color:#aaa;
+        background:#111827;
+        border:3px dashed #4fc3ff;
+        border-radius:16px;
+    `;
+    comments.parentElement.insertBefore(msg, comments);
+}
+
+/* ============================
    OBSERVER SPA
 ============================ */
 
-let debounceTimer;
-const observer = new MutationObserver(mutations => {
-    if (!mutations.some(m => m.addedNodes.length)) return;
-
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
+let debounce;
+new MutationObserver(() => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
         resaltarVideos();
         resaltarTituloVideoActual();
         agregarBotonVelocidad();
+        refrescarComentarios();
     }, 300);
-});
-
-observer.observe(document.body, { childList: true, subtree: true });
+}).observe(document.body, { childList: true, subtree: true });
 
 window.addEventListener('yt-navigate-finish', () => {
     setTimeout(() => {
         resaltarTituloVideoActual();
         agregarBotonVelocidad();
+        refrescarComentarios();
     }, 400);
 });
 
@@ -296,50 +258,25 @@ window.addEventListener('yt-navigate-finish', () => {
 ============================ */
 
 async function limpiarPlaylistMeGusta() {
-
     if (!location.href.includes("playlist?list=LL")) {
         mostrarOverlay("", true);
         return;
     }
-
-    mostrarOverlay("❤️ Quitando likes automáticamente...");
-
+    mostrarOverlay("❤️ Quitando likes...");
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     while (true) {
-
         const menus = document.querySelectorAll(
             'ytd-playlist-video-renderer ytd-menu-renderer button'
         );
-
-        if (!menus.length) {
-            window.scrollBy(0, 1200);
-            await sleep(2000);
-            continue;
-        }
-
-        for (let btn of menus) {
-            btn.scrollIntoView({ behavior: "smooth", block: "center" });
-            await sleep(700);
+        for (const btn of menus) {
+            btn.scrollIntoView({ block: "center" });
+            await sleep(600);
             btn.click();
-            await sleep(700);
-
-            const removeBtn = [...document.querySelectorAll(
-                'ytd-menu-service-item-renderer'
-            )].find(el =>
-                el.innerText.toLowerCase().includes('me gusta') ||
-                el.innerText.toLowerCase().includes('like')
-            );
-
-            if (removeBtn) {
-                removeBtn.click();
-                await sleep(1200 + Math.random() * 1200);
-            } else {
-                document.body.click();
-                await sleep(300);
-            }
+            await sleep(600);
+            document.querySelector('ytd-menu-service-item-renderer')?.click();
+            await sleep(1200);
         }
-
         window.scrollBy(0, 1500);
         await sleep(2000);
     }
@@ -349,27 +286,15 @@ async function limpiarPlaylistMeGusta() {
    MENÚ TAMPERMONKEY
 ============================ */
 
-GM_registerMenuCommand(
-    "📥 Importar desde HTML de marcadores",
-    importarMarcadoresHTML
-);
+GM_registerMenuCommand("📥 Importar desde HTML de marcadores", importarMarcadoresHTML);
 
-GM_registerMenuCommand(
-    "🗑️ Borrar marcadores",
-    async () => {
-        if (confirm("¿Borrar todos los marcadores importados?")) {
-            await GM_setValue("urlsYoutube", []);
-            urlsMarcadas = [];
-            idsMarcados.clear();
-            alert("🧹 Marcadores borrados.");
-        }
-    }
-);
+GM_registerMenuCommand("❤️ Limpiar playlist de Me gusta (LL)", limpiarPlaylistMeGusta);
 
-GM_registerMenuCommand(
-    "❤️ Limpiar playlist de Me gusta (LL)",
-    limpiarPlaylistMeGusta
-);
+GM_registerMenuCommand("💬 Activar / Desactivar comentarios", async () => {
+    const estado = await GM_getValue(COMMENTS_KEY, true);
+    await GM_setValue(COMMENTS_KEY, !estado);
+    refrescarComentarios();
+});
 
 /* ============================
    INIT
@@ -380,6 +305,7 @@ window.addEventListener('load', async () => {
     resaltarVideos();
     resaltarTituloVideoActual();
     agregarBotonVelocidad();
+    refrescarComentarios();
 });
 
 })();
