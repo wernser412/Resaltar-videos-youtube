@@ -1,6 +1,6 @@
 # 🎥 YouTube – Resaltador desde marcadores de Chrome
 
-**Última actualización:** 08 de febrero de 2026  
+**Última actualización:** 10 de febrero de 2026  
 **Autor:** @wernser412  
 
 Script de **Tampermonkey** que mejora YouTube de tres formas clave:
