@@ -1,106 +1,116 @@
-# 🎥 YouTube – Resaltador desde marcadores de Chrome
+# 🎥 Video Toolkit PRO (YouTube + Niconico)
 
-**Última actualización:** 10 de febrero de 2026  
-**Autor:** @wernser412  
+**Última actualización:** 15 de abril de 2026
 
-Script de **Tampermonkey** que mejora YouTube de tres formas clave:
+Script de **Tampermonkey** que mejora la experiencia en video con funciones avanzadas para:
 
-- 🎯 Resalta automáticamente videos guardados en tus marcadores
-- ❤️ Limpia masivamente la playlist **Videos que te gustan**
-- ⏩ Agrega un botón **2×** al reproductor para controlar la velocidad
-
-Ideal para organizar tu contenido, evitar repeticiones y consumir videos más rápido.
-
----
-
-## 📦 Instalación
-
-1. Instala la extensión **Tampermonkey** en tu navegador  
-   👉 https://www.tampermonkey.net/
-
-2. Instala el script desde GitHub:
-
-[![Instalar con Tampermonkey](https://img.shields.io/badge/Tampermonkey-Instalar-blue?logo=tampermonkey)](
-https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/YouTube%20-%20Resaltador%20desde%20marcadores%20de%20Chrome.user.js
-)
+* ▶ YouTube
+* ▶ Niconico
 
 ---
 
 ## ✨ Características
 
-### 📌 Resaltado de videos desde marcadores
+### 📌 Resaltado inteligente desde marcadores
 
-- 📥 Importa marcadores desde archivo `.html` (Chrome / Chromium)
-- 🎯 Resalta videos guardados con **fondo amarillo** y **borde naranja**
-- 🧠 Evita falsos positivos (comentarios y enlaces irrelevantes)
-- 🔄 Compatible con navegación dinámica de YouTube (SPA)
+* 📥 Importa marcadores desde archivo `.html` (Chrome / Chromium)
+* 🎯 Detecta automáticamente:
 
----
-
-### ❤️ Limpieza automática de “Videos que te gustan”
-
-- 🗑️ Elimina likes en masa desde la playlist:
-https://www.youtube.com/playlist?list=LL
-- 📢 Muestra un mensaje central de progreso
-- 🚀 No requiere clic manual video por video
-- 🤖 Funciona automáticamente mientras haces scroll
+  * YouTube
+  * Niconico
+* 🟡 Resaltado tipo YouTube (overlay, sin romper layout)
+* 🧠 Evita falsos positivos (comentarios y enlaces irrelevantes)
+* ⚡ Compatible con navegación dinámica (SPA)
 
 ---
 
-### ⏩ Botón de velocidad 2× (nuevo)
+### ▶ YouTube – Funciones extra
 
-- ▶ Agrega un botón **2×** directamente al reproductor de YouTube
-- 🔁 Alterna entre **1× ⇄ 2×**
-- 🎨 Estilo nativo (integrado con los controles oficiales)
-- 🧠 Se mantiene activo al cambiar de video (SPA friendly)
+#### ⏩ Botón de velocidad
 
-Perfecto para podcasts, tutoriales y videos largos.
+* 🔘 Botón integrado en el reproductor
+* 🔁 Alterna entre:
+
+  * `1× → 1.5× → 2×`
+* 🎯 Texto perfectamente centrado
+* 🔄 Persistente al cambiar de video (SPA)
+
+---
+
+#### ❤️ Limpieza de “Videos que te gustan”
+
+* 🗑️ Elimina likes en masa desde:
+  https://www.youtube.com/playlist?list=LL
+* 📢 Muestra overlay central de progreso
+* 🤖 Automatizado (scroll + eliminación continua)
+
+---
+
+#### 💬 Mostrar / ocultar comentarios
+
+* 🔘 Toggle desde menú Tampermonkey
+* 🧼 Mejora enfoque en el contenido
+
+---
+
+### ▶ Niconico – Resaltado mejorado
+
+* 🎯 Resalta correctamente tarjetas de video (no solo links)
+* 🟡 Overlay visual tipo YouTube (sin mover layout)
+* ❌ Sin “saltos” ni desplazamientos
+* 🧠 Uso de `data-decoration-video-id` para precisión
+
+---
+
+## 📦 Instalación
+
+1. Instala **Tampermonkey**
+   👉 https://www.tampermonkey.net/
+
+2. Instala el script:
+
+[![Instalar con Tampermonkey](https://img.shields.io/badge/Tampermonkey-Instalar-blue?logo=tampermonkey)](https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/Resaltador%20desde%20marcadores%20(YouTube%20+%20Niconico).user.js)
 
 ---
 
 ## 🛠 Cómo usar
 
-### ▶ Resaltar videos desde marcadores
+### 📌 Importar marcadores
 
 1. Abre `chrome://bookmarks/`
 2. Menú ⋮ → **Exportar marcadores**
-3. Abre YouTube
-4. Haz clic en el icono de Tampermonkey
-5. Selecciona **📥 Importar desde HTML de marcadores**
+3. Abre YouTube o Niconico
+4. Abre Tampermonkey
+5. Selecciona **📥 Importar bookmarks**
 6. Carga el archivo `.html`
 
-👉 Los videos guardados se marcarán automáticamente en toda la plataforma.
+👉 Los videos guardados se resaltarán automáticamente.
 
 ---
 
-### ❤️ Limpiar playlist de Me gusta
+### ❤️ Limpiar playlist de Me gusta (YouTube)
 
 1. Ve a:
-https://www.youtube.com/playlist?list=LL
-2. Abre Tampermonkey
-3. Selecciona **❤️ Limpiar playlist de Me gusta**
-4. Aparecerá un mensaje central indicando el progreso
-
-⚠️ **Nota:** el proceso es continuo; puedes detenerlo cerrando la pestaña.
+   https://www.youtube.com/playlist?list=LL
+2. Ejecuta:
+   **❤️ Limpiar Me gusta**
 
 ---
 
-## 🧪 Compatibilidad
+### 💬 Alternar comentarios
 
-- ✔ Chrome / Chromium
-- ✔ Tampermonkey
-- ✔ YouTube SPA (navegación sin recarga)
+* Menú Tampermonkey →
+  **💬 ON/OFF comentarios**
 
 ---
 
 ## 📜 Licencia
 
-Script de uso **personal y educativo**.
+Uso **personal y educativo**
 
-- ✏️ Puedes modificarlo libremente
-- ⚠️ Sin garantía de funcionamiento futuro  
-(YouTube cambia su interfaz con frecuencia)
+* ✏️ Libre modificación
+* ⚠️ Sin garantía (cambios frecuentes en UI de plataformas)
 
 ---
 
-⭐ Si te resulta útil, ¡una estrella en GitHub siempre se agradece!
+⭐ Si te resulta útil, ¡una estrella en GitHub se agradece!
