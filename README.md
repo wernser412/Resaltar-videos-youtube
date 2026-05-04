@@ -1,116 +1,75 @@
-# 🎥 Video Toolkit PRO (YouTube + Niconico)
+# 🎬 Resaltador de videos (YouTube + Niconico)
 
-**Última actualización:** 15 de abril de 2026
-
-Script de **Tampermonkey** que mejora la experiencia en video con funciones avanzadas para:
-
-* ▶ YouTube
-* ▶ Niconico
+Script de usuario para resaltar videos guardados en marcadores y mejorar la experiencia de reproducción.
 
 ---
 
-## ✨ Características
+## ✨ Funciones
 
-### 📌 Resaltado inteligente desde marcadores
+* ⭐ **Resalta videos guardados** (YouTube y Niconico)
+* 📥 **Importar bookmarks (HTML)** desde el navegador
+* 🎛️ **Botón de velocidad** (1x / 1.5x / 2x)
+* 🎚️ **Slider de volumen (100% – 300%)**
+* 💬 **Activar / desactivar comentarios**
+* ❤️ **Eliminar automáticamente videos con "Me gusta"**
+* 🎯 Compatible con:
 
-* 📥 Importa marcadores desde archivo `.html` (Chrome / Chromium)
-* 🎯 Detecta automáticamente:
-
-  * YouTube
-  * Niconico
-* 🟡 Resaltado tipo YouTube (overlay, sin romper layout)
-* 🧠 Evita falsos positivos (comentarios y enlaces irrelevantes)
-* ⚡ Compatible con navegación dinámica (SPA)
-
----
-
-### ▶ YouTube – Funciones extra
-
-#### ⏩ Botón de velocidad
-
-* 🔘 Botón integrado en el reproductor
-* 🔁 Alterna entre:
-
-  * `1× → 1.5× → 2×`
-* 🎯 Texto perfectamente centrado
-* 🔄 Persistente al cambiar de video (SPA)
-
----
-
-#### ❤️ Limpieza de “Videos que te gustan”
-
-* 🗑️ Elimina likes en masa desde:
-  https://www.youtube.com/playlist?list=LL
-* 📢 Muestra overlay central de progreso
-* 🤖 Automatizado (scroll + eliminación continua)
-
----
-
-#### 💬 Mostrar / ocultar comentarios
-
-* 🔘 Toggle desde menú Tampermonkey
-* 🧼 Mejora enfoque en el contenido
-
----
-
-### ▶ Niconico – Resaltado mejorado
-
-* 🎯 Resalta correctamente tarjetas de video (no solo links)
-* 🟡 Overlay visual tipo YouTube (sin mover layout)
-* ❌ Sin “saltos” ni desplazamientos
-* 🧠 Uso de `data-decoration-video-id` para precisión
+  * YouTube (incluye Shorts)
+  * Niconico / nico.ms
 
 ---
 
 ## 📦 Instalación
 
-1. Instala **Tampermonkey**
-   👉 https://www.tampermonkey.net/
-
-2. Instala el script:
-
-[![Instalar con Tampermonkey](https://img.shields.io/badge/Tampermonkey-Instalar-blue?logo=tampermonkey)](https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/Resaltador%20desde%20marcadores%20(YouTube%20+%20Niconico).user.js)
+1. Instala la extensión [Tampermonkey](https://www.tampermonkey.net/) en tu navegador.
+2. Haz clic en este enlace para instalar el script:  
+   👉 **[Descargar Script](https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/YouTube%20-%20Resaltador%20desde%20marcadores%20de%20Chrome.user.js)**
 
 ---
 
-## 🛠 Cómo usar
+## 📥 Importar marcadores
 
-### 📌 Importar marcadores
+1. Exporta tus marcadores desde tu navegador (HTML)
+2. En Tampermonkey:
 
-1. Abre `chrome://bookmarks/`
-2. Menú ⋮ → **Exportar marcadores**
-3. Abre YouTube o Niconico
-4. Abre Tampermonkey
-5. Selecciona **📥 Importar bookmarks**
-6. Carga el archivo `.html`
+   * Menú → **📥 Importar bookmarks**
+3. Selecciona el archivo
 
-👉 Los videos guardados se resaltarán automáticamente.
+✔️ El script detectará automáticamente los videos
 
 ---
 
-### ❤️ Limpiar playlist de Me gusta (YouTube)
+## 🎮 Uso
 
-1. Ve a:
-   https://www.youtube.com/playlist?list=LL
-2. Ejecuta:
-   **❤️ Limpiar Me gusta**
+* Los videos guardados se resaltan automáticamente
+* En YouTube:
 
----
+  * Usa el botón de velocidad
+  * Ajusta el volumen con el slider (hasta 300%)
+* Menú Tampermonkey:
 
-### 💬 Alternar comentarios
-
-* Menú Tampermonkey →
-  **💬 ON/OFF comentarios**
+  * 💬 ON/OFF comentarios
+  * ❤️ Limpiar "Me gusta"
 
 ---
 
-## 📜 Licencia
+## ⚠️ Notas
 
-Uso **personal y educativo**
-
-* ✏️ Libre modificación
-* ⚠️ Sin garantía (cambios frecuentes en UI de plataformas)
+* El volumen >100% puede causar distorsión
+* Algunas funciones dependen del DOM de YouTube (pueden romperse si cambia)
+* Puede requerir interacción del usuario para activar el audio
 
 ---
 
-⭐ Si te resulta útil, ¡una estrella en GitHub se agradece!
+## 🚀 Ideas futuras
+
+* Guardar velocidad por video
+* Filtro visual de videos marcados
+* Mejor rendimiento (observer optimizado)
+* Interfaz más integrada con YouTube
+
+---
+
+## 📄 Licencia
+
+Uso personal / libre modificación
