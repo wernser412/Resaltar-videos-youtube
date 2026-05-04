@@ -23,7 +23,7 @@ Script de usuario para resaltar videos guardados en marcadores y mejorar la expe
 
 1. Instala la extensión [Tampermonkey](https://www.tampermonkey.net/) en tu navegador.
 2. Haz clic en este enlace para instalar el script:  
-   👉 **[Descargar Script](https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/YouTube%20-%20Resaltador%20desde%20marcadores%20de%20Chrome.user.js)**
+   👉 **[Descargar Script](https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/Resaltador%20desde%20marcadores%20(YouTube%20+%20Niconico).user.js)**
 
 ---
 
