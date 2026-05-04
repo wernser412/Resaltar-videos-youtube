@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Resaltador desde marcadores (YouTube + Niconico)
 // @namespace    http://tampermonkey.net/
-// @version      2026.04.15
-// @description  Resalta videos guardados en marcadores
+// @version      2026.05.30
+// @description  Resalta videos + velocidad + comentarios + limpiar likes + volumen 300%
 // @author       wernser412
 // @icon         https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/ICONO.ico
 // @downloadURL  https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/YouTube%20-%20Resaltador%20desde%20marcadores%20de%20Chrome.user.js
@@ -23,6 +23,11 @@ let urls = [];
 let idsYT = new Set();
 let idsNico = new Set();
 let overlay;
+
+/* 🔊 VOLUMEN */
+let ctx, source, gainNode;
+let vhSlider, vhLabel;
+const VOL_KEY = "vh_volume";
 
 /* ============================ DETECCIÓN */
 const isYT = () => location.hostname.includes("youtube.com");
@@ -56,6 +61,7 @@ function getYTid(url) {
     try {
         const u = new URL(url);
         if (u.hostname === "youtu.be") return u.pathname.slice(1);
+        if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2];
         return u.searchParams.get("v");
     } catch { return null; }
 }
@@ -111,7 +117,7 @@ async function importHTML() {
     input.click();
 }
 
-/* ============================ RESALTADO YT (FIX comentarios) */
+/* ============================ RESALTADO */
 function highlightYT() {
     document.querySelectorAll('a[href*="watch?v="], a[href*="youtu.be/"]').forEach(a => {
 
@@ -135,7 +141,6 @@ function highlightYT() {
     }
 }
 
-/* ============================ RESALTADO NICO */
 function highlightNico() {
     document.querySelectorAll('a[href*="/watch/"], a[href*="nico.ms"]').forEach(a => {
         const id = getNicoId(a.href);
@@ -150,13 +155,12 @@ function highlightNico() {
     }
 }
 
-/* ============================ CORE */
 function refresh() {
     if (isYT()) highlightYT();
     if (isNico()) highlightNico();
 }
 
-/* ============================ BOTÓN VELOCIDAD (FIX CENTRADO) */
+/* ============================ VELOCIDAD */
 function addSpeedBtn() {
     if (!isYT()) return;
 
@@ -196,6 +200,68 @@ function addSpeedBtn() {
     controls.prepend(btn);
 }
 
+/* ============================ 🔊 VOLUMEN */
+function setupAudio(video) {
+    if (ctx) return;
+
+    ctx = new AudioContext();
+    source = ctx.createMediaElementSource(video);
+    gainNode = ctx.createGain();
+
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    gainNode.gain.value = 1.0;
+}
+
+async function addVolumeSlider() {
+    if (!isYT()) return;
+
+    const controls = document.querySelector('.ytp-right-controls');
+    if (!controls || document.getElementById('vh-volume')) return;
+
+    const container = document.createElement('div');
+    container.id = 'vh-volume';
+
+    container.style.cssText = `
+        display:flex;
+        align-items:center;
+        gap:6px;
+        margin-right:10px;
+    `;
+
+    const saved = await GM_getValue(VOL_KEY, 100);
+
+    vhLabel = document.createElement('span');
+    vhLabel.textContent = saved + '%';
+    vhLabel.style.fontSize = '12px';
+
+    vhSlider = document.createElement('input');
+    vhSlider.type = 'range';
+    vhSlider.min = 100;
+    vhSlider.max = 300;
+    vhSlider.value = saved;
+    vhSlider.style.width = '80px';
+
+    vhSlider.oninput = async () => {
+        const video = document.querySelector('video');
+        if (!video) return;
+
+        setupAudio(video);
+
+        const value = vhSlider.value / 100;
+        gainNode.gain.value = value;
+
+        vhLabel.textContent = vhSlider.value + '%';
+        await GM_setValue(VOL_KEY, vhSlider.value);
+    };
+
+    container.appendChild(vhLabel);
+    container.appendChild(vhSlider);
+
+    controls.prepend(container);
+}
+
 /* ============================ COMENTARIOS */
 const COMMENTS_KEY = "vh_comments";
 
@@ -228,7 +294,7 @@ async function applyComments() {
     c.parentElement.insertBefore(msg, c);
 }
 
-/* ============================ LIMPIAR LIKES */
+/* ============================ LIMPIAR LIKES (INTACTO) */
 async function cleanLikes() {
     if (!location.href.includes("list=LL")) {
         showOverlay("", true);
@@ -263,17 +329,8 @@ async function cleanLikes() {
 
 /* ============================ ESTILOS */
 GM_addStyle(`
-.vh-h {
-    background:#fff3a0 !important;
-    border-left:6px solid orange !important;
-    padding-left:6px !important;
-}
-.vh-title {
-    background:linear-gradient(90deg,#fff3a0,transparent) !important;
-    border-left:6px solid orange !important;
-    padding:6px 10px !important;
-    border-radius:6px !important;
-}
+.vh-h { background:#fff3a0 !important; border-left:6px solid orange !important; padding-left:6px !important; }
+.vh-title { background:linear-gradient(90deg,#fff3a0,transparent) !important; border-left:6px solid orange !important; padding:6px 10px !important; border-radius:6px !important; }
 `);
 
 /* ============================ OBSERVER */
@@ -283,6 +340,7 @@ new MutationObserver(() => {
     debounce = setTimeout(() => {
         refresh();
         addSpeedBtn();
+        addVolumeSlider();
         applyComments();
     }, 300);
 }).observe(document.body, { childList: true, subtree: true });
@@ -294,10 +352,11 @@ window.addEventListener("load", async () => {
 
     refresh();
     addSpeedBtn();
+    addVolumeSlider();
     applyComments();
 });
 
-/* ============================ MENU */
+/* ============================ MENU (TODO INTACTO) */
 GM_registerMenuCommand("📥 Importar bookmarks", importHTML);
 GM_registerMenuCommand("💬 ON/OFF comentarios", toggleComments);
 GM_registerMenuCommand("❤️ Limpiar Me gusta", cleanLikes);
