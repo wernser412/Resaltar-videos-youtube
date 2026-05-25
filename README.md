@@ -1,6 +1,6 @@
 # 🎬 Resaltador de videos (YouTube + Niconico)
 
-**Última Actualización:** 03 de mayo de 2026
+**Última Actualización:** 24 de mayo de 2026
 
 Script de usuario para resaltar videos guardados en marcadores y mejorar la experiencia de reproducción.
 
