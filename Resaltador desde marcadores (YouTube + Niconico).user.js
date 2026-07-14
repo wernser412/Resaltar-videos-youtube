@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Resaltador desde marcadores (YouTube + Niconico)
 // @namespace    http://tampermonkey.net/
-// @version      2026.05.24
-// @description  Resalta videos + velocidad + comentarios + limpiar likes + volumen 300%
+// @version      2026.07.14
+// @description  Resalta videos + velocidad + volumen 300%
 // @author       wernser412
 // @icon         https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/ICONO.ico
 // @downloadURL  https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/YouTube%20-%20Resaltador%20desde%20marcadores%20de%20Chrome.user.js
@@ -29,29 +29,47 @@ let idsYT = new Set();
 
 let idsNico = new Set();
 
-let overlay;
-
 /* ============================ PANEL */
 
 let vhPanel;
 
 let vhFab;
 
+let vhBody;
+
+let vhObserver;
+
+let vhWatchdogTimer;
+
 /* ============================ CONFIG */
 
 const MENU_VISIBLE_KEY = "vh_menu_visible";
 
+const HIGHLIGHT_STYLE_ID = "vh-highlight-style";
+
+const UI_STYLE_ID = "vh-ui-style";
+
+// Estado de visibilidad mantenido en memoria (se carga una sola vez al
+// arrancar y solo se modifica al hacer click en el menú de Tampermonkey).
+// Evita releer storage repetidamente, que era la causa de que el botón
+// "reapareciera solo" tras ocultarlo.
+let vhVisibleState = false;
+
 /* ============================ VOLUMEN */
 
-let ctx, source, gainNode;
+let ctx, gainNode;
+
+let connectedVideo = null; // video actualmente conectado al AudioContext
 
 let vhSlider, vhLabel;
 
 const VOL_KEY = "vh_volume";
 
-/* ============================ COMENTARIOS */
+/* ============================ VELOCIDAD */
 
-const COMMENTS_KEY = "vh_comments";
+const SPEEDS = [1, 1.5, 2];
+
+let speedIndex = 0;
 
 /* ============================ DETECCIÓN */
 
@@ -61,60 +79,6 @@ const isYT = () =>
 const isNico = () =>
     location.hostname.includes("nicovideo.jp") ||
     location.hostname.includes("nico.ms");
-
-/* ============================ OVERLAY */
-
-function showOverlay(text, link = false) {
-
-    if (!overlay) {
-
-        overlay =
-            document.createElement("div");
-
-        overlay.style.cssText = `
-            position:fixed;
-            top:50%;
-            left:50%;
-
-            transform:
-                translate(-50%,-50%);
-
-            z-index:999999;
-        `;
-
-        const box =
-            document.createElement("div");
-
-        box.style.cssText = `
-            width:420px;
-
-            background:#0b1220;
-            color:#fff;
-
-            border:4px solid #4fc3ff;
-
-            border-radius:20px;
-
-            padding:20px;
-
-            font-size:20px;
-            font-weight:bold;
-
-            text-align:center;
-
-            white-space:pre-line;
-        `;
-
-        overlay.appendChild(box);
-
-        document.body.appendChild(overlay);
-    }
-
-    overlay.firstChild.textContent =
-        link
-            ? "ABRE ESTA PLAYLIST:\nhttps://www.youtube.com/playlist?list=LL"
-            : text;
-}
 
 /* ============================ IDS */
 
@@ -311,6 +275,12 @@ function highlightYT() {
         }
     });
 
+    document
+        .querySelectorAll(".vh-title")
+        .forEach(el =>
+            el.classList.remove("vh-title")
+        );
+
     const id =
         getYTid(location.href);
 
@@ -345,6 +315,12 @@ function highlightNico() {
         }
     });
 
+    document
+        .querySelectorAll(".vh-title")
+        .forEach(el =>
+            el.classList.remove("vh-title")
+        );
+
     const id =
         getNicoId(location.href);
 
@@ -369,6 +345,30 @@ function refresh() {
 }
 
 /* ============================ VELOCIDAD */
+
+// Aplica la velocidad recordada al elemento <video> actual. Se llama tanto
+// al pulsar el botón como al navegar a un video nuevo, para que el botón
+// y la velocidad real del video nunca queden desincronizados (bug corregido:
+// antes, al cambiar de video YouTube reseteaba la velocidad a 1x pero el
+// botón seguía mostrando la velocidad anterior).
+function applySpeed() {
+
+    const v =
+        document.querySelector('video');
+
+    if (!v)
+        return;
+
+    v.playbackRate =
+        SPEEDS[speedIndex];
+
+    const btn =
+        document.getElementById('vh-speed');
+
+    if (btn)
+        btn.textContent =
+            SPEEDS[speedIndex] + '×';
+}
 
 function addSpeedBtn() {
 
@@ -407,56 +407,93 @@ function addSpeedBtn() {
         font-weight:600;
     `;
 
-    const speeds = [1, 1.5, 2];
-
-    let index = 0;
-
     btn.textContent =
-        speeds[index] + '×';
+        SPEEDS[speedIndex] + '×';
 
     btn.onclick = () => {
 
-        const v =
-            document.querySelector('video');
+        speedIndex =
+            (speedIndex + 1) %
+            SPEEDS.length;
 
-        if (!v)
-            return;
-
-        index =
-            (index + 1) %
-            speeds.length;
-
-        v.playbackRate =
-            speeds[index];
-
-        btn.textContent =
-            speeds[index] + '×';
+        applySpeed();
     };
 
     controls.prepend(btn);
+
+    applySpeed();
 }
 
 /* ============================ VOLUMEN */
 
 function setupAudio(video) {
 
-    if (ctx)
+    if (video === connectedVideo)
         return;
 
-    ctx =
-        new AudioContext();
+    // Cada <video> solo puede conectarse una vez a un MediaElementSource,
+    // así que si ya existe un contexto lo reutilizamos y solo creamos
+    // una fuente nueva para el video nuevo.
+    if (!ctx)
+        ctx = new AudioContext();
 
-    source =
+    const source =
         ctx.createMediaElementSource(video);
 
-    gainNode =
-        ctx.createGain();
+    if (!gainNode) {
+
+        gainNode =
+            ctx.createGain();
+
+        gainNode.connect(ctx.destination);
+    }
 
     source.connect(gainNode);
 
-    gainNode.connect(ctx.destination);
+    connectedVideo = video;
+}
 
-    gainNode.gain.value = 1;
+// Aplica el volumen guardado al video actual sin esperar a que el usuario
+// mueva el slider (bug corregido: antes el volumen guardado solo se
+// aplicaba al tocar manualmente el control, así que un video nuevo
+// siempre arrancaba al 100% real aunque el slider mostrara otro valor).
+async function applySavedVolume() {
+
+    if (!isYT())
+        return;
+
+    const video =
+        document.querySelector('video');
+
+    if (!video)
+        return;
+
+    if (video === connectedVideo && !vhSlider)
+        return;
+
+    const saved =
+        Number(
+            await GM_getValue(
+                VOL_KEY,
+                100
+            )
+        );
+
+    setupAudio(video);
+
+    if (ctx.state === "suspended")
+        ctx.resume();
+
+    gainNode.gain.value =
+        saved / 100;
+
+    if (vhSlider) {
+
+        vhSlider.value = saved;
+
+        vhLabel.textContent =
+            saved + '%';
+    }
 }
 
 async function addVolumeSlider() {
@@ -530,6 +567,9 @@ async function addVolumeSlider() {
 
         setupAudio(video);
 
+        if (ctx.state === "suspended")
+            ctx.resume();
+
         gainNode.gain.value =
             vhSlider.value / 100;
 
@@ -547,412 +587,360 @@ async function addVolumeSlider() {
     container.appendChild(vhSlider);
 
     controls.prepend(container);
+
+    applySavedVolume();
 }
 
-/* ============================ COMENTARIOS */
+/* ============================ ESTILOS UI (FAB + PANEL) */
 
-async function toggleComments() {
+const UI_THEME = `
+  #vh-fab {
+    position:fixed; right:20px; bottom:20px; width:48px; height:48px;
+    border:none; border-radius:50%;
+    background:linear-gradient(140deg,#818cf8,#6366f1 60%,#4338ca);
+    color:white; font-size:22px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    z-index:999999;
+    box-shadow:0 8px 22px rgba(99,102,241,.4), 0 0 0 1px rgba(255,255,255,.10) inset;
+    transition:transform .18s ease, box-shadow .18s ease; user-select:none;
+  }
+  #vh-fab:hover { box-shadow:0 12px 30px rgba(99,102,241,.6), 0 0 0 1px rgba(255,255,255,.14) inset; transform:translateY(-2px); }
+  #vh-fab:active { transform:scale(.92); }
 
-    const s =
-        await GM_getValue(
-            COMMENTS_KEY,
-            true
-        );
+  #vh-panel {
+    position:fixed; right:20px; bottom:78px; width:290px; max-height:70vh;
+    background:#15171c; color:#f1f1f1; border-radius:16px; padding:0;
+    display:none; flex-direction:column; overflow:hidden; z-index:999998;
+    font-family:-apple-system,Segoe UI,Arial,sans-serif; font-size:13px;
+    box-shadow:0 16px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06);
+    opacity:0; transform:translateY(10px) scale(.97);
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  #vh-panel.open { display:flex; opacity:1; transform:translateY(0) scale(1); }
 
-    await GM_setValue(
-        COMMENTS_KEY,
-        !s
-    );
+  #vh-panel .vh-head {
+    display:flex; align-items:center; gap:8px; padding:14px 16px;
+    background:linear-gradient(135deg, rgba(251,111,44,.22), rgba(251,111,44,0) 70%);
+    border-bottom:1px solid rgba(255,255,255,.07);
+  }
+  #vh-panel .vh-head .vh-emoji { font-size:17px; }
+  #vh-panel .vh-head b { font-size:14.5px; letter-spacing:.2px; font-weight:600; }
 
-    applyComments();
+  #vh-panel .vh-body { overflow-y:auto; padding:12px 12px 8px; display:flex; flex-direction:column; gap:7px; }
+
+  .vh-row {
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:11px 12px; background:#1d2026; border-radius:11px; cursor:pointer;
+    transition:background .12s ease, transform .1s ease; border:1px solid transparent;
+    width:100%; text-align:left; color:#eee; font-family:inherit;
+  }
+  .vh-row:hover { background:#242832; border-color:rgba(251,111,44,.25); }
+  .vh-row:active { transform:scale(.98); }
+  .vh-row .vh-label { display:flex; flex-direction:column; min-width:0; }
+  .vh-row .vh-title { font-size:12.5px; color:#f1f1f1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; }
+  .vh-row .vh-desc { font-size:10.5px; color:#8a8f98; margin-top:2px; }
+  .vh-row .vh-icon { font-size:16px; margin-right:2px; }
+
+  #vh-panel .vh-foot { padding:8px 12px 12px; font-size:10px; color:#63666d; text-align:center; border-top:1px solid rgba(255,255,255,.05); }
+`;
+
+function ensureUIStyleInjected() {
+    if (document.getElementById(UI_STYLE_ID))
+        return;
+
+    const style = document.createElement("style");
+
+    style.id = UI_STYLE_ID;
+
+    style.textContent = UI_THEME;
+
+    (document.head || document.documentElement).appendChild(style);
 }
 
-async function applyComments() {
-
-    if (!isYT())
+function ensureHighlightStyleInjected() {
+    if (document.getElementById(HIGHLIGHT_STYLE_ID))
         return;
 
-    const enabled =
-        await GM_getValue(
-            COMMENTS_KEY,
-            true
-        );
+    const style = document.createElement("style");
 
-    const c =
-        document.querySelector(
-            'ytd-comments'
-        );
+    style.id = HIGHLIGHT_STYLE_ID;
 
-    if (
-        !c ||
-        !c.parentElement
-    ) return;
-
-    document
-        .getElementById("vh-c-msg")
-        ?.remove();
-
-    if (enabled) {
-
-        c.style.display = '';
-
-        return;
-    }
-
-    c.style.display = 'none';
-
-    const msg =
-        document.createElement("div");
-
-    msg.id = "vh-c-msg";
-
-    msg.textContent =
-        "💬 Comentarios desactivados";
-
-    msg.style.cssText = `
-        margin:30px auto;
-
-        text-align:center;
-
-        font-size:20px;
-
-        color:#aaa;
+    style.textContent = `
+        .vh-h{
+            background:#fff3a0 !important;
+            border-left:6px solid orange !important;
+            padding-left:6px !important;
+        }
+        .vh-title{
+            background:linear-gradient(90deg,#fff3a0,transparent) !important;
+            border-left:6px solid orange !important;
+            padding:6px 10px !important;
+            border-radius:6px !important;
+        }
     `;
 
-    c.parentElement.insertBefore(
-        msg,
-        c
-    );
+    (document.head || document.documentElement).appendChild(style);
 }
 
-/* ============================ LIMPIAR LIKES */
+/* ============================ PANEL: BUILD */
 
-async function cleanLikes() {
+function addPanelAction(icon, title, desc, action) {
 
-    if (
-        !location.href.includes(
-            "list=LL"
-        )
-    ) {
+    const row =
+        document.createElement("button");
 
-        showOverlay("", true);
+    row.className = "vh-row";
 
-        return;
+    const label =
+        document.createElement("div");
+
+    label.className = "vh-label";
+
+    const titleEl =
+        document.createElement("div");
+
+    titleEl.className = "vh-title";
+
+    titleEl.textContent =
+        `${icon}  ${title}`;
+
+    label.appendChild(titleEl);
+
+    if (desc) {
+
+        const descEl =
+            document.createElement("div");
+
+        descEl.className = "vh-desc";
+
+        descEl.textContent = desc;
+
+        label.appendChild(descEl);
     }
 
-    showOverlay(
-        "❤️ Quitando likes..."
-    );
+    row.appendChild(label);
 
-    const sleep =
-        ms => new Promise(
-            r => setTimeout(r, ms)
-        );
+    row.onclick = action;
 
-    while (true) {
-
-        const menus =
-            document.querySelectorAll(
-                'ytd-playlist-video-renderer button'
-            );
-
-        for (const btn of menus) {
-
-            btn.scrollIntoView({
-                block: "center"
-            });
-
-            await sleep(500);
-
-            btn.click();
-
-            await sleep(500);
-
-            const items =
-                [...document.querySelectorAll(
-                    'ytd-menu-service-item-renderer'
-                )];
-
-            const remove =
-                items.find(i =>
-                    i.innerText
-                        .toLowerCase()
-                        .includes('me gusta')
-                );
-
-            remove?.click();
-
-            await sleep(1000);
-        }
-
-        window.scrollBy(0, 1500);
-
-        await sleep(2000);
-    }
+    vhBody.appendChild(row);
 }
-
-/* ============================ PANEL */
 
 function toggleMenu() {
 
     if (!vhPanel)
         return;
 
-    vhPanel.style.display =
-        vhPanel.style.display === "none"
-            ? "flex"
-            : "none";
+    vhPanel.classList.toggle("open");
 }
 
-function addPanelButton(text, action) {
+/* ============================ RESILIENCIA (adjunto/fullscreen/estilo) */
 
-    const btn =
-        document.createElement("button");
+/**
+ * Garantiza que exista un único FAB/panel en el DOM, que las referencias
+ * apunten al nodo real, que el CSS siga inyectado, y que el nodo esté
+ * en el contenedor correcto (respetando la Fullscreen API nativa, que
+ * renderiza el elemento en pantalla completa por encima de todo lo demás
+ * sin importar z-index — un fixed externo quedaría tapado si no se
+ * mueve dentro de ese contenedor).
+ */
+function ensureFabAttached() {
 
-    btn.className =
-        "vh-menu-btn";
+    ensureUIStyleInjected();
 
-    btn.textContent =
-        text;
+    ensureHighlightStyleInjected();
 
-    btn.onclick =
-        action;
+    const fabDupes =
+        document.querySelectorAll("#vh-fab");
 
-    btn.style.cssText = `
-        width:240px;
+    if (fabDupes.length > 1)
+        fabDupes.forEach((n, i) => { if (i > 0) n.remove(); });
 
-        border:none;
+    const panelDupes =
+        document.querySelectorAll("#vh-panel");
 
-        border-radius:14px;
+    if (panelDupes.length > 1)
+        panelDupes.forEach((n, i) => { if (i > 0) n.remove(); });
 
-        padding:14px 16px;
+    const realFab = document.getElementById("vh-fab");
 
-        background:#1e293b;
+    const realPanel = document.getElementById("vh-panel");
 
-        color:white;
+    if (realFab) vhFab = realFab;
 
-        font-size:15px;
-        font-weight:600;
+    if (realPanel) vhPanel = realPanel;
 
-        text-align:left;
+    const fsEl =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement;
 
-        cursor:pointer;
+    const target = fsEl || document.body;
 
-        box-shadow:
-            0 4px 12px rgba(0,0,0,.35);
+    if (vhFab && !document.body.contains(vhFab))
+        target.appendChild(vhFab);
 
-        transition:
-            transform .15s,
-            background .15s;
-    `;
+    if (vhPanel && !document.body.contains(vhPanel))
+        target.appendChild(vhPanel);
 
-    btn.onmouseenter = () => {
+    if (vhFab && vhFab.parentNode !== target)
+        target.appendChild(vhFab);
 
-        btn.style.transform =
-            "translateY(-2px)";
-
-        btn.style.background =
-            "#334155";
-    };
-
-    btn.onmouseleave = () => {
-
-        btn.style.transform =
-            "translateY(0)";
-
-        btn.style.background =
-            "#1e293b";
-    };
-
-    vhPanel.appendChild(btn);
+    if (vhPanel && vhPanel.parentNode !== target)
+        target.appendChild(vhPanel);
 }
 
-async function applyFloatingMenuVisibility() {
+function applyFloatingMenuVisibility() {
 
-    const visible =
-        await GM_getValue(
-            MENU_VISIBLE_KEY,
-            false
-        );
+    if (!vhFab)
+        return;
 
-    if (vhFab)
-        vhFab.style.display =
-            visible ? "block" : "none";
+    ensureFabAttached();
 
-    if (vhPanel && !visible)
-        vhPanel.style.display = "none";
+    vhFab.style.display =
+        vhVisibleState ? "flex" : "none";
+
+    if (!vhVisibleState && vhPanel)
+        vhPanel.classList.remove("open");
 }
 
 async function toggleFloatingMenuVisibility() {
 
-    const visible =
-        await GM_getValue(
-            MENU_VISIBLE_KEY,
-            false
-        );
+    vhVisibleState = !vhVisibleState;
 
     await GM_setValue(
         MENU_VISIBLE_KEY,
-        !visible
+        vhVisibleState
     );
 
     applyFloatingMenuVisibility();
 }
+
+function startWatchdog() {
+
+    if (vhObserver)
+        vhObserver.disconnect();
+
+    vhObserver = new MutationObserver(() => {
+
+        if (
+            !vhFab || !document.body.contains(vhFab) ||
+            !vhPanel || !document.body.contains(vhPanel) ||
+            !document.getElementById(UI_STYLE_ID)
+        ) {
+            applyFloatingMenuVisibility();
+        }
+    });
+
+    vhObserver.observe(document.body, { childList: true, subtree: false });
+
+    vhObserver.observe(document.head || document.documentElement, { childList: true, subtree: false });
+
+    ["fullscreenchange", "webkitfullscreenchange"].forEach(ev => {
+
+        document.addEventListener(ev, ensureFabAttached, true);
+    });
+
+    if (vhWatchdogTimer)
+        clearInterval(vhWatchdogTimer);
+
+    vhWatchdogTimer = setInterval(() => {
+
+        ensureFabAttached();
+
+        if (vhFab)
+            vhFab.style.display =
+                vhVisibleState ? "flex" : "none";
+
+    }, 1500);
+}
+
+/* ============================ PANEL: CREAR */
 
 async function createFloatingMenu() {
 
     if (vhPanel)
         return;
 
+    ensureUIStyleInjected();
+
+    vhVisibleState =
+        await GM_getValue(
+            MENU_VISIBLE_KEY,
+            false
+        );
+
     vhPanel =
         document.createElement("div");
 
-    vhPanel.id =
-        "vh-panel";
+    vhPanel.id = "vh-panel";
 
-    vhPanel.style.cssText = `
-        position:fixed;
+    const head =
+        document.createElement("div");
 
-        right:20px;
-        bottom:90px;
+    head.className = "vh-head";
 
-        display:none;
+    const emoji =
+        document.createElement("span");
 
-        flex-direction:column;
+    emoji.className = "vh-emoji";
 
-        gap:10px;
+    emoji.textContent = "🔖";
 
-        z-index:999999;
-    `;
+    const title =
+        document.createElement("b");
+
+    title.textContent =
+        "Marcadores";
+
+    head.append(emoji, title);
+
+    vhBody =
+        document.createElement("div");
+
+    vhBody.className = "vh-body";
+
+    const foot =
+        document.createElement("div");
+
+    foot.className = "vh-foot";
+
+    foot.textContent =
+        "Resaltador desde marcadores";
+
+    vhPanel.append(head, vhBody, foot);
 
     document.body.appendChild(vhPanel);
 
     vhFab =
         document.createElement("button");
 
-    vhFab.id =
-        "vh-fab";
+    vhFab.id = "vh-fab";
 
-    vhFab.textContent =
-        "☰";
+    vhFab.title = "Menú";
 
-    vhFab.title =
-        "Menú";
+    vhFab.textContent = "🔖";
 
-    vhFab.style.cssText = `
-        position:fixed;
-
-        right:20px;
-        bottom:20px;
-
-        width:60px;
-        height:60px;
-
-        border:none;
-
-        border-radius:50%;
-
-        background:#ff9800;
-
-        color:white;
-
-        font-size:28px;
-        font-weight:bold;
-
-        cursor:pointer;
-
-        z-index:999999;
-
-        display:none;
-
-        box-shadow:
-            0 4px 12px rgba(0,0,0,.4);
-
-        transition:
-            transform .15s;
-    `;
-
-    vhFab.onmouseenter = () => {
-        vhFab.style.transform =
-            "scale(1.08)";
-    };
-
-    vhFab.onmouseleave = () => {
-        vhFab.style.transform =
-            "scale(1)";
-    };
-
-    vhFab.onmousedown = () => {
-        vhFab.style.transform =
-            "scale(.95)";
-    };
-
-    vhFab.onmouseup = () => {
-        vhFab.style.transform =
-            "scale(1.08)";
-    };
-
-    vhFab.onclick =
-        toggleMenu;
+    vhFab.onclick = toggleMenu;
 
     document.body.appendChild(vhFab);
 
-    addPanelButton(
-        "📥 Importar bookmarks",
+    addPanelAction(
+        "📥", "Importar bookmarks",
+        "Cargar videos desde un HTML",
         importHTML
     );
 
-    addPanelButton(
-        "🗑 Limpiar bookmarks",
+    addPanelAction(
+        "🗑", "Limpiar bookmarks",
+        "Elimina todos los importados",
         clearBookmarks
     );
 
-    addPanelButton(
-        "💬 ON/OFF comentarios",
-        toggleComments
-    );
-
-    addPanelButton(
-        "❤️ Limpiar Me gusta",
-        cleanLikes
-    );
-
     applyFloatingMenuVisibility();
+
+    startWatchdog();
 }
 
-/* ============================ ESTILOS */
-
-GM_addStyle(`
-.vh-h{
-
-    background:#fff3a0 !important;
-
-    border-left:
-        6px solid orange !important;
-
-    padding-left:6px !important;
-}
-
-.vh-title{
-
-    background:
-        linear-gradient(
-            90deg,
-            #fff3a0,
-            transparent
-        ) !important;
-
-    border-left:
-        6px solid orange !important;
-
-    padding:
-        6px 10px !important;
-
-    border-radius:6px !important;
-}
-`);
-
-/* ============================ OBSERVER */
+/* ============================ OBSERVER GENERAL (highlight, controles YT) */
 
 let debounce;
 
@@ -967,8 +955,6 @@ new MutationObserver(() => {
         addSpeedBtn();
 
         addVolumeSlider();
-
-        applyComments();
 
         createFloatingMenu();
 
@@ -995,7 +981,9 @@ window.addEventListener(
 
             addVolumeSlider();
 
-            applyComments();
+            applySpeed();
+
+            applySavedVolume();
 
             createFloatingMenu();
 
@@ -1023,8 +1011,6 @@ window.addEventListener(
 
         addVolumeSlider();
 
-        applyComments();
-
         createFloatingMenu();
     }
 );
@@ -1032,7 +1018,7 @@ window.addEventListener(
 /* ============================ MENU */
 
 GM_registerMenuCommand(
-    "☰ Mostrar/Ocultar botón flotante",
+    "🔖 Mostrar/Ocultar botón flotante",
     toggleFloatingMenuVisibility
 );
 
