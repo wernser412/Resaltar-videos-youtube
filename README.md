@@ -22,7 +22,13 @@ El script funciona incluso con la navegación dinámica (SPA) de YouTube y manti
 2. Exporta tus marcadores de Chrome en formato **HTML** (opcional, para importar los videos).
 3. Instala el script desde GitHub.
 
-**➡️ Instalar Script**
+## ⚡ Instalar Script
+
+1. Instala la extensión **Tampermonkey** para tu navegador.
+
+2. Instala el script desde GitHub:
+
+**➡️ [Instalar Script](https://github.com/wernser412/Resaltar-videos-youtube/raw/refs/heads/main/Resaltador%20desde%20marcadores%20(YouTube%20+%20Niconico).user.js)**
 
 ---
 
